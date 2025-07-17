@@ -1,0 +1,29 @@
+rules_temp.txt
+
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read: if request.auth.uid != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow write: if request.auth.uid != null && request.auth.uid == userId;
+    }
+
+    match /login/{loginId} {
+      allow read, write: if request.auth.uid != null;
+    }
+
+    match /buslocations/{driverId} {
+      allow read: if request.auth.uid != null;
+      allow write: if request.auth.uid != null && request.auth.uid == driverId;
+    }
+
+    match /buses/{busId} {
+      allow read: if request.auth.uid != null;
+    }
+
+    match /{document=**} {
+      allow read: if request.auth.uid != null;
+    }
+  }
+}
+
