@@ -40,6 +40,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase.js';
 import { useAuth } from '../hooks/useAuth.jsx';
+import { verifyDriver } from '../lib/userRoleService.js';
 
 const AdminUserVerificationPanel = ({ onClose }) => {
   const { user } = useAuth();
@@ -48,21 +49,27 @@ const AdminUserVerificationPanel = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     // Listen to pending users
     const pendingQuery = query(
       collection(db, 'users'),
-      where("isPending", "==", true),
-      where("isVerified", "==", false),
-      orderBy('createdAt', 'desc')
+      where("isPending", "==", true)
     );
 
     const unsubscribePending = onSnapshot(pendingQuery, (snapshot) => {
-      const users = snapshot.docs.map(doc => ({
+      const users = snapshot.docs
+        .map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      }))
+        .filter(user => user.isVerified === false)
+        .sort((a, b) => {
+          const aTime = a.createdAt?.seconds || 0;
+          const bTime = b.createdAt?.seconds || 0;
+          return bTime - aTime;
+        });
       setPendingUsers(users);
       setLoading(false);
     });
@@ -70,15 +77,20 @@ const AdminUserVerificationPanel = ({ onClose }) => {
     // Listen to verified users
     const verifiedQuery = query(
       collection(db, 'users'),
-      where("isVerified", "==", true),
-      orderBy('verifiedAt', 'desc')
+      where("isVerified", "==", true)
     );
 
     const unsubscribeVerified = onSnapshot(verifiedQuery, (snapshot) => {
-      const users = snapshot.docs.map(doc => ({
+      const users = snapshot.docs
+        .map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      }))
+        .sort((a, b) => {
+          const aTime = a.verifiedAt?.seconds || 0;
+          const bTime = b.verifiedAt?.seconds || 0;
+          return bTime - aTime;
+        });
       setVerifiedUsers(users);
     });
 
@@ -90,18 +102,20 @@ const AdminUserVerificationPanel = ({ onClose }) => {
 
   const handleApproveUser = async (userId, userEmail) => {
     setActionLoading(true);
+    setError('');
     try {
-      await updateDoc(doc(db, 'users', userId), {
-        isVerified: true,
-        isPending: false,
-        verifiedAt: serverTimestamp(),
-        verifiedBy: user.email
-      });
+      const result = await verifyDriver(userId, true, `Approved by ${user.email}`);
+      
+      if (!result.success) {
+        setError(result.error || 'Failed to approve user');
+        return;
+      }
 
       // You could also send a notification email here if needed
       console.log(`User ${userEmail} approved by ${user.email}`);
     } catch (error) {
       console.error('Error approving user:', error);
+      setError('An unexpected error occurred while approving user');
     } finally {
       setActionLoading(false);
       setSelectedUser(null);
@@ -110,17 +124,19 @@ const AdminUserVerificationPanel = ({ onClose }) => {
 
   const handleRejectUser = async (userId, userEmail) => {
     setActionLoading(true);
+    setError('');
     try {
-      await updateDoc(doc(db, 'users', userId), {
-        isVerified: false,
-        isPending: false,
-        rejectedAt: serverTimestamp(),
-        rejectedBy: user.email
-      });
+      const result = await verifyDriver(userId, false, `Rejected by ${user.email}`);
+      
+      if (!result.success) {
+        setError(result.error || 'Failed to reject user');
+        return;
+      }
 
       console.log(`User ${userEmail} rejected by ${user.email}`);
     } catch (error) {
       console.error('Error rejecting user:', error);
+      setError('An unexpected error occurred while rejecting user');
     } finally {
       setActionLoading(false);
       setSelectedUser(null);
@@ -215,14 +231,48 @@ const AdminUserVerificationPanel = ({ onClose }) => {
                       </div>
                       
                       {userData.role === 'driver' && (
-                        <Alert>
-                          <Car className="h-4 w-4" />
-                          <AlertDescription>
-                            This user is applying for driver access. Drivers can share their live location for bus tracking.
-                          </AlertDescription>
-                        </Alert>
+                        <div className="space-y-3">
+                          <Alert>
+                            <Car className="h-4 w-4" />
+                            <AlertDescription>
+                              This user is applying for driver access. Drivers can share their live location for bus tracking.
+                            </AlertDescription>
+                          </Alert>
+                          
+                          {userData.driverInfo && (
+                            <div className="p-3 bg-muted rounded-lg">
+                              <h4 className="font-medium mb-2">Driver Information</h4>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                  <span className="font-medium">License:</span> {userData.driverInfo.licenseNumber}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Bus Number:</span> {userData.driverInfo.busNumber}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Route:</span> {userData.driverInfo.route}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Phone:</span> {userData.driverInfo.phoneNumber}
+                                </div>
+                              </div>
+                              {userData.driverInfo.additionalInfo && (
+                                <div className="mt-2">
+                                  <span className="font-medium">Additional Info:</span>
+                                  <p className="text-sm text-muted-foreground mt-1">{userData.driverInfo.additionalInfo}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
+                    
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
                     
                     <DialogFooter className="space-x-2">
                       <Button 
@@ -231,14 +281,14 @@ const AdminUserVerificationPanel = ({ onClose }) => {
                         disabled={actionLoading}
                       >
                         <XCircle className="h-4 w-4 mr-1" />
-                        Reject
+                        {actionLoading ? 'Rejecting...' : 'Reject'}
                       </Button>
                       <Button 
                         onClick={() => handleApproveUser(userData.id, userData.email)}
                         disabled={actionLoading}
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
+                        {actionLoading ? 'Approving...' : 'Approve'}
                       </Button>
                     </DialogFooter>
                   </DialogContent>

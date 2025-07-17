@@ -161,7 +161,7 @@ const DriverVerificationForm = ({ onSuccess, onCancel }) => {
             <h4 className="font-semibold text-blue-900 mb-2">What happens next?</h4>
             <ul className="text-sm text-blue-800 space-y-1">
               <li>• Your request will be reviewed by an administrator</li>
-              <li>• You'll receive an email notification about the verification status</li>
+              <li>• You'll be notified about the verification status in the app</li>
               <li>• Once approved, you can start sharing your live location</li>
               <li>• Students will be able to track your bus in real-time</li>
             </ul>

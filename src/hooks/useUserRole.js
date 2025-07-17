@@ -65,7 +65,7 @@ export const useUserRole = () => {
   const isAdmin = user?.email === 'arunachalam3670@gmail.com';
   const isVerified = userProfile?.isVerified;
   const isPending = userProfile?.isPending;
-  const isRejected = userProfile?.isRejected;
+  const isRejected = userProfile?.isRejected === true;
 
   return {
     userProfile,

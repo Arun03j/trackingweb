@@ -21,11 +21,7 @@ const BUSES_COLLECTION = 'buses';
  */
 export const subscribeToBusLocations = (callback) => {
   const busesRef = collection(db, BUSES_COLLECTION);
-  const q = query(
-    busesRef, 
-    where('status', '==', 'active'),
-    orderBy('lastUpdated', 'desc')
-  );
+  const q = query(busesRef, where('status', '==', 'active'));
 
   return onSnapshot(q, (snapshot) => {
     const buses = [];
@@ -35,6 +31,14 @@ export const subscribeToBusLocations = (callback) => {
         ...doc.data()
       });
     });
+    
+    // Sort by lastUpdated in memory to avoid composite index requirement
+    buses.sort((a, b) => {
+      const aTime = a.lastUpdated?.seconds || 0;
+      const bTime = b.lastUpdated?.seconds || 0;
+      return bTime - aTime;
+    });
+    
     callback(buses);
   }, (error) => {
     console.error('Error listening to bus locations:', error);

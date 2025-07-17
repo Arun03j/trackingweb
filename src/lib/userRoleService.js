@@ -76,12 +76,15 @@ export const requestDriverVerification = async (userId, driverInfo) => {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       role: USER_ROLES.DRIVER,
-      verificationStatus: VERIFICATION_STATUS.PENDING,
+      isPending: true,
+      isVerified: false,
+      isRejected: false,
       driverInfo: {
         licenseNumber: driverInfo.licenseNumber,
         busNumber: driverInfo.busNumber,
         route: driverInfo.route,
         phoneNumber: driverInfo.phoneNumber,
+        additionalInfo: driverInfo.additionalInfo,
         requestedAt: serverTimestamp()
       },
       updatedAt: serverTimestamp()
@@ -97,15 +100,27 @@ export const requestDriverVerification = async (userId, driverInfo) => {
 /**
  * Verify driver (admin function)
  */
-export const verifyDriver = async (userId, status, adminNotes = '') => {
+export const verifyDriver = async (userId, isApproved, adminNotes = '') => {
   try {
     const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      verificationStatus: status,
+    
+    const updateData = {
       adminNotes,
-      verifiedAt: status === VERIFICATION_STATUS.APPROVED ? serverTimestamp() : null,
+      isPending: false,
       updatedAt: serverTimestamp()
-    });
+    };
+    
+    if (isApproved) {
+      updateData.isVerified = true;
+      updateData.isRejected = false;
+      updateData.verifiedAt = serverTimestamp();
+    } else {
+      updateData.isVerified = false;
+      updateData.isRejected = true;
+      updateData.rejectedAt = serverTimestamp();
+    }
+    
+    await updateDoc(userRef, updateData);
     
     return { success: true };
   } catch (error) {
@@ -121,18 +136,22 @@ export const getPendingDriverVerifications = async () => {
   try {
     const q = query(
       collection(db, 'users'),
-      where('role', '==', USER_ROLES.DRIVER),
-      where('verificationStatus', '==', VERIFICATION_STATUS.PENDING)
+      where('isPending', '==', true)
     );
     
     const querySnapshot = await getDocs(q);
     const pendingDrivers = [];
     
     querySnapshot.forEach((doc) => {
-      pendingDrivers.push({
+      const userData = {
         id: doc.id,
         ...doc.data()
-      });
+      };
+      
+      // Filter for drivers that are pending and not verified
+      if (userData.role === USER_ROLES.DRIVER && userData.isVerified === false) {
+        pendingDrivers.push(userData);
+      }
     });
     
     return { success: true, data: pendingDrivers };
@@ -152,7 +171,7 @@ export const canShareLocation = async (userId) => {
     
     const userData = profile.data;
     return userData.role === USER_ROLES.DRIVER && 
-           userData.verificationStatus === VERIFICATION_STATUS.APPROVED;
+           userData.isVerified === true && userData.isPending === false;
   } catch (error) {
     console.error('Error checking location sharing permission:', error);
     return false;
@@ -180,18 +199,22 @@ export const getVerifiedDrivers = async () => {
   try {
     const q = query(
       collection(db, 'users'),
-      where('role', '==', USER_ROLES.DRIVER),
-      where('verificationStatus', '==', VERIFICATION_STATUS.APPROVED)
+      where('isVerified', '==', true)
     );
     
     const querySnapshot = await getDocs(q);
     const verifiedDrivers = [];
     
     querySnapshot.forEach((doc) => {
-      verifiedDrivers.push({
+      const userData = {
         id: doc.id,
         ...doc.data()
-      });
+      };
+      
+      // Filter for verified drivers only
+      if (userData.role === USER_ROLES.DRIVER) {
+        verifiedDrivers.push(userData);
+      }
     });
     
     return { success: true, data: verifiedDrivers };
