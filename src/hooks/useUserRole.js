@@ -62,7 +62,7 @@ export const useUserRole = () => {
 
   const isDriver = userProfile?.role === USER_ROLES.DRIVER;
   const isStudent = userProfile?.role === USER_ROLES.STUDENT;
-  const isAdmin = user?.email === 'arunachalam3670@gmail.com';
+  const isAdmin = userProfile?.role === USER_ROLES.ADMIN;
   const isVerified = userProfile?.isVerified;
   const isPending = userProfile?.isPending;
   const isRejected = userProfile?.isRejected === true;

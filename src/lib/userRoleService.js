@@ -102,9 +102,23 @@ export const requestDriverVerification = async (userId, driverInfo) => {
  */
 export const verifyDriver = async (userId, isApproved, adminNotes = '') => {
   try {
+    // First check if the user document exists
     const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    
+    if (!userSnap.exists()) {
+      throw new Error('User document not found');
+    }
+    
+    const currentData = userSnap.data();
+    
+    // Ensure the user is actually a driver requesting verification
+    if (currentData.role !== USER_ROLES.DRIVER) {
+      throw new Error('User is not a driver');
+    }
     
     const updateData = {
+      ...currentData, // Preserve existing data
       adminNotes,
       isPending: false,
       updatedAt: serverTimestamp()
@@ -120,12 +134,13 @@ export const verifyDriver = async (userId, isApproved, adminNotes = '') => {
       updateData.rejectedAt = serverTimestamp();
     }
     
-    await updateDoc(userRef, updateData);
+    // Use setDoc with merge instead of updateDoc to avoid permission issues
+    await setDoc(userRef, updateData, { merge: true });
     
     return { success: true };
   } catch (error) {
     console.error('Error verifying driver:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message || 'Failed to verify driver' };
   }
 };
 

@@ -182,7 +182,7 @@ const DriverLocationControl = () => {
           {/* Control Button */}
           <Button
             onClick={toggleSharing}
-            disabled={!canStartSharing || loading}
+            disabled={!true || loading}
             className={`w-full ${isSharing ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
             size="lg"
           >
