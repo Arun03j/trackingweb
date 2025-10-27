@@ -376,10 +376,11 @@ const BusMap = ({
       <Button
         onClick={handleLocateUser}
         disabled={isLocating}
-        className="absolute bottom-4 right-4 z-[1000] shadow-lg rounded-full w-12 h-12 p-0 flex items-center justify-center"
-        variant="default"
+        className="absolute bottom-4 left-4 z-[1000] shadow-lg rounded-full w-14 h-14 p-0 flex items-center justify-center bg-white hover:bg-gray-100 border-2 border-gray-300"
+        variant="outline"
+        title="Show my location"
       >
-        <Navigation className={`h-5 w-5 ${isLocating ? 'animate-pulse' : ''}`} />
+        <Navigation className={`h-6 w-6 ${isLocating ? 'animate-pulse' : ''} text-blue-600`} />
       </Button>
     </div>
   );
