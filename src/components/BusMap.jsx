@@ -2,7 +2,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { Navigation } from 'lucide-react';
 import { listenToDriverLocations } from '../lib/locationService.js';
+import { Button } from './ui/button';
 
 // Fix for default markers in React Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -104,15 +106,17 @@ const MapUpdater = ({ buses, selectedBus, onBusSelect, driverLocations, selected
   return null;
 };
 
-const BusMap = ({ 
-  buses = [], 
-  selectedBus, 
+const BusMap = ({
+  buses = [],
+  selectedBus,
   onBusSelect,
   selectedDriver,
   onDriverSelect,
-  className = "" 
+  className = ""
 }) => {
   const [driverLocations, setDriverLocations] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
   const mapRef = useRef();
 
   // Listen to live driver locations
@@ -154,6 +158,39 @@ const BusMap = ({
     return accuracy < 1000 ? `${Math.round(accuracy)}m` : `${(accuracy / 1000).toFixed(1)}km`;
   };
 
+  const handleLocateUser = () => {
+    setIsLocating(true);
+
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      setIsLocating(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ latitude, longitude });
+
+        if (mapRef.current) {
+          mapRef.current.setView([latitude, longitude], 15);
+        }
+
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        alert('Unable to retrieve your location. Please check your browser permissions.');
+        setIsLocating(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
+      }
+    );
+  };
+
   // Default center (New York City)
   const defaultCenter = [40.7128, -74.0060];
   
@@ -172,8 +209,44 @@ const BusMap = ({
     return [avgLat, avgLng];
   };
 
+  const createUserIcon = () => {
+    return L.divIcon({
+      className: 'custom-user-marker',
+      html: `
+        <div style="
+          background-color: #3b82f6;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          border: 3px solid white;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3), 0 2px 6px rgba(0,0,0,0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: pulse 2s ease-in-out infinite;
+        ">
+          <div style="
+            width: 8px;
+            height: 8px;
+            background-color: white;
+            border-radius: 50%;
+          "></div>
+        </div>
+        <style>
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+          }
+        </style>
+      `,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+      popupAnchor: [0, -13]
+    });
+  };
+
   return (
-    <div className={`h-full w-full ${className}`}>
+    <div className={`h-full w-full relative ${className}`}>
       <MapContainer
         center={getMapCenter()}
         zoom={13}
@@ -282,7 +355,32 @@ const BusMap = ({
             </Marker>
           );
         })}
+
+        {userLocation && (
+          <Marker
+            position={[userLocation.latitude, userLocation.longitude]}
+            icon={createUserIcon()}
+          >
+            <Popup>
+              <div className="p-2 min-w-[180px]">
+                <h3 className="font-semibold text-lg mb-2">Your Location</h3>
+                <p className="text-xs text-gray-500">
+                  {userLocation.latitude.toFixed(6)}, {userLocation.longitude.toFixed(6)}
+                </p>
+              </div>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
+
+      <Button
+        onClick={handleLocateUser}
+        disabled={isLocating}
+        className="absolute bottom-4 right-4 z-[1000] shadow-lg rounded-full w-12 h-12 p-0 flex items-center justify-center"
+        variant="default"
+      >
+        <Navigation className={`h-5 w-5 ${isLocating ? 'animate-pulse' : ''}`} />
+      </Button>
     </div>
   );
 };
