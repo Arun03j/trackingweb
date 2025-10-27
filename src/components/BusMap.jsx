@@ -179,14 +179,30 @@ const BusMap = ({
         setIsLocating(false);
       },
       (error) => {
-        console.error('Error getting location:', error);
-        alert('Unable to retrieve your location. Please check your browser permissions.');
+        console.error('Geolocation error:', error);
+        let errorMessage = 'Unable to retrieve your location. ';
+
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage += 'Please allow location access in your browser settings.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage += 'Location information is unavailable. Please try again.';
+            break;
+          case error.TIMEOUT:
+            errorMessage += 'Location request timed out. Please try again.';
+            break;
+          default:
+            errorMessage += 'An unknown error occurred.';
+        }
+
+        alert(errorMessage);
         setIsLocating(false);
       },
       {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 30000
       }
     );
   };
