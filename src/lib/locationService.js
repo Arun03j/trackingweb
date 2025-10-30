@@ -84,44 +84,70 @@ export const stopLocationSharing = async (userId) => {
 };
 
 /**
- * Get current position using Geolocation API
+ * Get current position using Geolocation API with fallback strategies
  */
-export const getCurrentPosition = (options = {}) => {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported by this browser'));
-      return;
-    }
+export const getCurrentPosition = async (options = {}) => {
+  if (!navigator.geolocation) {
+    throw new Error('Geolocation is not supported by this browser');
+  }
 
-    const defaultOptions = {
+  // Multiple strategies to try
+  const strategies = [
+    {
       enableHighAccuracy: true,
       timeout: 10000,
-      maximumAge: 60000, // 1 minute
+      maximumAge: 0,
       ...options
-    };
+    },
+    {
+      enableHighAccuracy: false,
+      timeout: 8000,
+      maximumAge: 5000
+    },
+    {
+      enableHighAccuracy: false,
+      timeout: 15000,
+      maximumAge: 60000
+    }
+  ];
 
-    navigator.geolocation.getCurrentPosition(
-      resolve,
-      (error) => {
-        let errorMessage = 'Unknown location error';
-        
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = 'Location access denied by user';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Location information unavailable';
-            break;
-          case error.TIMEOUT:
-            errorMessage = 'Location request timed out';
-            break;
-        }
-        
-        reject(new Error(errorMessage));
-      },
-      defaultOptions
-    );
-  });
+  let lastError = null;
+
+  for (const strategy of strategies) {
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          strategy
+        );
+      });
+
+      return position; // Success!
+    } catch (error) {
+      lastError = error;
+      console.warn('Location strategy failed, trying next...', error);
+    }
+  }
+
+  // All strategies failed
+  let errorMessage = 'Unknown location error';
+
+  if (lastError) {
+    switch (lastError.code) {
+      case 1: // PERMISSION_DENIED
+        errorMessage = 'Location access denied. Please enable location permissions in your browser.';
+        break;
+      case 2: // POSITION_UNAVAILABLE
+        errorMessage = 'Location unavailable. Please check if location services are enabled on your device.';
+        break;
+      case 3: // TIMEOUT
+        errorMessage = 'Location request timed out. Please check your connection and try again.';
+        break;
+    }
+  }
+
+  throw new Error(errorMessage);
 };
 
 /**

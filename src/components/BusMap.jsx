@@ -2,9 +2,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Navigation } from 'lucide-react';
+import { Navigation, AlertCircle } from 'lucide-react';
 import { listenToDriverLocations } from '../lib/locationService.js';
+import { requestLocationWithDiagnostics } from '../utils/locationDiagnostics.js';
 import { Button } from './ui/button';
+import { Alert, AlertDescription } from './ui/alert';
 
 // Fix for default markers in React Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -117,6 +119,7 @@ const BusMap = ({
   const [driverLocations, setDriverLocations] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState(null);
   const mapRef = useRef();
 
   // Listen to live driver locations
@@ -158,53 +161,136 @@ const BusMap = ({
     return accuracy < 1000 ? `${Math.round(accuracy)}m` : `${(accuracy / 1000).toFixed(1)}km`;
   };
 
-  const handleLocateUser = () => {
+  const handleLocateUser = async () => {
     setIsLocating(true);
+    setLocationError(null);
+
+    console.log('Attempting to get user location...');
+    console.log('Protocol:', window.location.protocol);
+    console.log('Secure context:', window.isSecureContext);
 
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser');
+      const errorMsg = 'Geolocation is not supported by your browser';
+      setLocationError(errorMsg);
+      alert(errorMsg);
       setIsLocating(false);
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
+    // Check for HTTPS requirement
+    if (!window.isSecureContext && window.location.protocol !== 'https:') {
+      const errorMsg = 'Location services require HTTPS or localhost. Current URL: ' + window.location.protocol;
+      console.error(errorMsg);
+      setLocationError(errorMsg);
+      alert('Location services require a secure connection (HTTPS). Please access this app via HTTPS or localhost.');
+      setIsLocating(false);
+      return;
+    }
+
+    // Try with multiple fallback strategies
+    const strategies = [
+      // Strategy 1: Low accuracy first for quick response
+      {
+        name: 'Quick location (low accuracy)',
+        enableHighAccuracy: false,
+        timeout: 5000,
+        maximumAge: 10000
+      },
+      // Strategy 2: High accuracy
+      {
+        name: 'Precise location (high accuracy)',
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      },
+      // Strategy 3: Very permissive
+      {
+        name: 'Cached location (fallback)',
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 300000
+      }
+    ];
+
+    for (let i = 0; i < strategies.length; i++) {
+      try {
+        console.log(`Trying strategy ${i + 1}: ${strategies[i].name}`);
+
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            resolve,
+            reject,
+            {
+              enableHighAccuracy: strategies[i].enableHighAccuracy,
+              timeout: strategies[i].timeout,
+              maximumAge: strategies[i].maximumAge
+            }
+          );
+        });
+
+        const { latitude, longitude, accuracy } = position.coords;
+        console.log('Location found:', { latitude, longitude, accuracy });
+
         setUserLocation({ latitude, longitude });
+        setLocationError(null);
 
         if (mapRef.current) {
           mapRef.current.setView([latitude, longitude], 15);
         }
 
         setIsLocating(false);
-      },
-      (error) => {
-        console.error('Geolocation error:', error);
-        let errorMessage = 'Unable to retrieve your location. ';
+        return; // Success!
+      } catch (error) {
+        console.error(`Strategy ${i + 1} failed:`, error);
 
-        switch(error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage += 'Please allow location access in your browser settings.';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage += 'Location information is unavailable. Please try again.';
-            break;
-          case error.TIMEOUT:
-            errorMessage += 'Location request timed out. Please try again.';
-            break;
-          default:
-            errorMessage += 'An unknown error occurred.';
+        // If this was the last strategy, show detailed error
+        if (i === strategies.length - 1) {
+          let errorMessage = '';
+
+          switch(error.code) {
+            case 1: // PERMISSION_DENIED
+              errorMessage = 'LOCATION PERMISSION DENIED\n\n';
+              errorMessage += 'Please enable location access:\n\n';
+              errorMessage += '1. Click the lock icon in your browser\'s address bar\n';
+              errorMessage += '2. Find "Location" and change it to "Allow"\n';
+              errorMessage += '3. Refresh this page and try again\n\n';
+              errorMessage += 'Browser: ' + navigator.userAgent.split(')')[0] + ')';
+              break;
+            case 2: // POSITION_UNAVAILABLE
+              errorMessage = 'LOCATION UNAVAILABLE\n\n';
+              errorMessage += 'Common causes:\n';
+              errorMessage += '• VPN or proxy server is active\n';
+              errorMessage += '• Location services disabled on device\n';
+              errorMessage += '• Poor GPS signal (try near a window)\n';
+              errorMessage += '• Browser blocking location\n';
+              errorMessage += '• Running on HTTP instead of HTTPS\n\n';
+              errorMessage += 'Solutions:\n';
+              errorMessage += '1. Disable VPN/proxy if active\n';
+              errorMessage += '2. Enable location services in device settings\n';
+              errorMessage += '3. Try a different browser (Chrome/Firefox recommended)\n';
+              errorMessage += '4. Ensure you\'re using HTTPS or localhost';
+              break;
+            case 3: // TIMEOUT
+              errorMessage = 'LOCATION TIMEOUT\n\n';
+              errorMessage += 'The location request took too long.\n\n';
+              errorMessage += 'Try:\n';
+              errorMessage += '• Moving to an area with better signal\n';
+              errorMessage += '• Checking your internet connection\n';
+              errorMessage += '• Restarting your browser';
+              break;
+            default:
+              errorMessage = 'LOCATION ERROR\n\n';
+              errorMessage += error.message || 'Unknown error occurred';
+              errorMessage += '\n\nTry refreshing the page or using a different browser.';
+          }
+
+          console.error('Final error:', errorMessage);
+          setLocationError(errorMessage);
+          alert(errorMessage);
+          setIsLocating(false);
         }
-
-        alert(errorMessage);
-        setIsLocating(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0
       }
-    );
+    }
   };
 
   // Default center (New York City)
@@ -263,6 +349,24 @@ const BusMap = ({
 
   return (
     <div className={`h-full w-full relative ${className}`}>
+      {locationError && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] max-w-md">
+          <Alert variant="destructive" className="bg-red-50 border-red-200">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              Location unavailable. Check browser console (F12) for details.
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-2 h-6 text-xs"
+                onClick={() => setLocationError(null)}
+              >
+                Dismiss
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
       <MapContainer
         center={getMapCenter()}
         zoom={13}
