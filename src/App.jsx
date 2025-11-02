@@ -67,45 +67,8 @@ const AppContent = () => {
     }
   };
 
-  // Demo data for buses (fallback)
-  const demoData = [
-    {
-      id: 'bus-001',
-      busId: 'B001',
-      latitude: 40.7614,
-      longitude: -73.9776,
-      route: 'Route 1',
-      status: 'active',
-      speed: 25,
-      heading: 90,
-      lastUpdated: { seconds: Date.now() / 1000 - 120 }
-    },
-    {
-      id: 'bus-002',
-      busId: 'B002',
-      latitude: 40.7589,
-      longitude: -73.9851,
-      route: 'Route 2',
-      status: 'active',
-      speed: 18,
-      heading: 180,
-      lastUpdated: { seconds: Date.now() / 1000 - 300 }
-    },
-    {
-      id: 'bus-003',
-      busId: 'B003',
-      latitude: 40.7505,
-      longitude: -73.9934,
-      route: 'Route 3',
-      status: 'maintenance',
-      speed: 0,
-      heading: 0,
-      lastUpdated: { seconds: Date.now() / 1000 - 1800 }
-    }
-  ];
-
-  // Use demo data if no real data is available
-  const displayBuses = buses.length > 0 ? buses : demoData;
+  // Use only real data from Firebase, no demo data
+  const displayBuses = buses;
 
   // Show verification form for pending drivers
   if (isDriver && isPending && showVerificationForm) {
