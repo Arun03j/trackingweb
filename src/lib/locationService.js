@@ -19,11 +19,21 @@ export const startLocationSharing = async (userId, userEmail, driverInfo) => {
   try {
     const locationRef = doc(db, 'driverLocations', userId);
     
-    // Get current position
+    // Get current position with mobile-friendly settings
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    console.log('📍 Starting location sharing:', { userId, isMobile, driverInfo });
+    
     const position = await getCurrentPosition({
       enableHighAccuracy: false,
-      timeout: 20000,
+      timeout: isMobile ? 25000 : 20000,
       maximumAge: 300000
+    });
+    
+    console.log('✅ Got position:', { 
+      latitude: position.coords.latitude, 
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy 
     });
     
     await setDoc(locationRef, {
@@ -42,9 +52,10 @@ export const startLocationSharing = async (userId, userEmail, driverInfo) => {
       lastSeen: serverTimestamp()
     });
     
+    console.log('✅ Location sharing record created in Firestore');
     return { success: true, position };
   } catch (error) {
-    console.error('Error starting location sharing:', error);
+    console.error('❌ Error starting location sharing:', error.message, error.code);
     return { success: false, error: error.message };
   }
 };
@@ -223,12 +234,23 @@ export const watchPosition = (callback, errorCallback, options = {}) => {
     return null;
   }
 
+  // Detect if on mobile
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
   const defaultOptions = {
-    enableHighAccuracy: true,
-    timeout: 20000,
-    maximumAge: 60000, // 60 seconds
+    // Mobile: use network-based location (faster, less battery) unless explicitly requested high accuracy
+    enableHighAccuracy: options.enableHighAccuracy !== undefined ? options.enableHighAccuracy : !isMobile,
+    timeout: options.timeout !== undefined ? options.timeout : (isMobile ? 30000 : 20000),
+    maximumAge: options.maximumAge !== undefined ? options.maximumAge : (isMobile ? 120000 : 60000), // 2 min on mobile, 1 min on desktop
     ...options
   };
+
+  console.log('🎯 Starting watch position:', {
+    isMobile,
+    enableHighAccuracy: defaultOptions.enableHighAccuracy,
+    timeout: defaultOptions.timeout,
+    maximumAge: defaultOptions.maximumAge
+  });
 
   return navigator.geolocation.watchPosition(
     callback,
@@ -237,16 +259,17 @@ export const watchPosition = (callback, errorCallback, options = {}) => {
       
       switch (error.code) {
         case error.PERMISSION_DENIED:
-          errorMessage = 'Location access denied by user';
+          errorMessage = isMobile ? 'Location permission denied. Please enable location in Settings and allow access.' : 'Location access denied by user';
           break;
         case error.POSITION_UNAVAILABLE:
-          errorMessage = 'Location information unavailable';
+          errorMessage = isMobile ? 'Location services unavailable. Ensure WiFi/Cellular and Location Services are ON.' : 'Location information unavailable';
           break;
         case error.TIMEOUT:
-          errorMessage = 'Location request timed out';
+          errorMessage = isMobile ? 'Location request timed out. Try enabling high accuracy in settings.' : 'Location request timed out';
           break;
       }
       
+      console.error('📍 Watch position error:', error.code, errorMessage);
       errorCallback(new Error(errorMessage));
     },
     defaultOptions

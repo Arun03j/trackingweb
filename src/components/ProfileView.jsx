@@ -58,22 +58,22 @@ const ProfileView = ({ onNavigateToSettings, onNavigateToAdminDashboard, onNavig
 
   // Start sharing location
   const handleStartSharing = async () => {
-    if (!user || !userProfile?.driverInfo) {
-      toast.error('Driver information not found');
+    if (!user) {
+      toast.error('User information not found');
       return;
     }
 
     setIsLoadingLocation(true);
     
     try {
-      // Start location sharing
+      // Start location sharing - use available driver info or defaults
       const result = await startLocationSharing(
         user.uid,
         user.email,
         {
-          displayName: userProfile.displayName || user.displayName || 'Driver',
-          busNumber: userProfile.driverInfo.busNumber || 'Unknown',
-          route: userProfile.driverInfo.route || 'Unknown Route'
+          displayName: userProfile?.displayName || user.displayName || 'Driver',
+          busNumber: userProfile?.driverInfo?.busNumber || 'Unknown',
+          route: userProfile?.driverInfo?.route || 'Unknown Route'
         }
       );
 
@@ -82,6 +82,9 @@ const ProfileView = ({ onNavigateToSettings, onNavigateToAdminDashboard, onNavig
         setLastUpdate(new Date());
         
         // Start watching position for continuous updates
+        // Detect if on mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
         const id = watchPosition(
           async (position) => {
             await updateDriverLocation(user.uid, position);
@@ -89,11 +92,13 @@ const ProfileView = ({ onNavigateToSettings, onNavigateToAdminDashboard, onNavig
           },
           (error) => {
             console.error('Watch position error:', error);
+            toast.error('Location update stopped: ' + error.message);
+            setIsSharing(false);
           },
           {
-            enableHighAccuracy: true,
-            timeout: 20000,
-            maximumAge: 60000
+            enableHighAccuracy: isMobile ? false : true,
+            timeout: isMobile ? 30000 : 20000,
+            maximumAge: isMobile ? 120000 : 60000
           }
         );
         
