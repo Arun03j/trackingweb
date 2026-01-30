@@ -50,6 +50,7 @@ const AdminUserVerificationPanel = ({ onClose }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState(false);
 
   useEffect(() => {
     // Listen to pending users
@@ -101,45 +102,81 @@ const AdminUserVerificationPanel = ({ onClose }) => {
   }, []);
 
   const handleApproveUser = async (userId, userEmail) => {
+    console.log('🟢 APPROVE BUTTON CLICKED', { userId, userEmail });
     setActionLoading(true);
     setError('');
+    setActionSuccess(false);
+    
     try {
+      console.log('📞 Calling verifyDriver with isApproved=true');
       const result = await verifyDriver(userId, true, `Approved by ${user.email}`);
       
+      console.log('📊 verifyDriver result:', result);
+      
       if (!result.success) {
-        setError(result.error || 'Failed to approve user');
+        const errorMsg = result.error || 'Failed to approve user';
+        console.error('❌ Approval failed:', errorMsg, 'Code:', result.code);
+        setError(errorMsg);
         return;
       }
 
-      // You could also send a notification email here if needed
+      // Success!
+      setActionSuccess(true);
+      console.log('✅ User approved successfully!');
       console.log(`User ${userEmail} approved by ${user.email}`);
+      
+      // Close dialog after brief delay to show success
+      setTimeout(() => {
+        console.log('🔄 Closing dialog...');
+        setSelectedUser(null);
+        setError('');
+        setActionSuccess(false);
+      }, 800);
+      
     } catch (error) {
-      console.error('Error approving user:', error);
-      setError('An unexpected error occurred while approving user');
+      console.error('❌ EXCEPTION during approve:', error);
+      setError('An unexpected error occurred while approving user: ' + error.message);
     } finally {
       setActionLoading(false);
-      setSelectedUser(null);
     }
   };
 
   const handleRejectUser = async (userId, userEmail) => {
+    console.log('🔴 REJECT BUTTON CLICKED', { userId, userEmail });
     setActionLoading(true);
     setError('');
+    setActionSuccess(false);
     try {
+      console.log('📞 Calling verifyDriver with isApproved=false');
       const result = await verifyDriver(userId, false, `Rejected by ${user.email}`);
       
+      console.log('📊 verifyDriver result:', result);
+      
       if (!result.success) {
-        setError(result.error || 'Failed to reject user');
+        const errorMsg = result.error || 'Failed to reject user';
+        console.error('❌ Rejection failed:', errorMsg, 'Code:', result.code);
+        setError(errorMsg);
         return;
       }
 
+      // Success!
+      setActionSuccess(true);
+      console.log('✅ User rejected successfully!');
       console.log(`User ${userEmail} rejected by ${user.email}`);
+      
+      // Close dialog after brief delay to show success
+      setTimeout(() => {
+        console.log('🔄 Closing dialog...');
+        setSelectedUser(null);
+        setError('');
+        setActionSuccess(false);
+      }, 800);
+      
     } catch (error) {
-      console.error('Error rejecting user:', error);
-      setError('An unexpected error occurred while rejecting user');
+      console.error('❌ EXCEPTION during reject:', error);
+      setError('An unexpected error occurred while rejecting user: ' + error.message);
     } finally {
       setActionLoading(false);
-      setSelectedUser(null);
     }
   };
 
@@ -191,18 +228,28 @@ const AdminUserVerificationPanel = ({ onClose }) => {
           <div className="flex items-center gap-2 justify-end sm:justify-start">
             {isPending ? (
               <>
-                <Dialog>
+                <Dialog open={!!selectedUser} onOpenChange={(open) => {
+                  if (!open) {
+                    setSelectedUser(null);
+                    setError('');
+                    setActionSuccess(false);
+                  }
+                }}>
                   <DialogTrigger asChild>
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => setSelectedUser(userData)}
+                      onClick={() => {
+                        console.log('📋 Review button clicked for user:', userData.email);
+                        setSelectedUser(userData);
+                      }}
                       className="touch-manipulation min-h-[40px] text-xs sm:text-sm"
                     >
                       <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                       Review
                     </Button>
                   </DialogTrigger>
+                  {selectedUser && selectedUser.id === userData.id && (
                   <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="text-base sm:text-lg">Review User Application</DialogTitle>
@@ -269,11 +316,41 @@ const AdminUserVerificationPanel = ({ onClose }) => {
                           )}
                         </div>
                       )}
+
+                      {userData.role === 'student' && (
+                        <div className="space-y-3">
+                          <Alert>
+                            <GraduationCap className="h-4 w-4" />
+                            <AlertDescription>
+                              This user is applying for student access.
+                            </AlertDescription>
+                          </Alert>
+                        </div>
+                      )}
+
+                      {userData.role === 'admin' && (
+                        <div className="space-y-3">
+                          <Alert>
+                            <Shield className="h-4 w-4" />
+                            <AlertDescription>
+                              This user is requesting admin access.
+                            </AlertDescription>
+                          </Alert>
+                        </div>
+                      )}
                     </div>
                     
                     {error && (
                       <Alert variant="destructive">
                         <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+                    
+                    {actionSuccess && (
+                      <Alert className="border-green-500 bg-green-50">
+                        <AlertDescription className="text-green-800">
+                          ✓ Action completed successfully!
+                        </AlertDescription>
                       </Alert>
                     )}
                     
@@ -297,6 +374,7 @@ const AdminUserVerificationPanel = ({ onClose }) => {
                       </Button>
                     </DialogFooter>
                   </DialogContent>
+                  )}
                 </Dialog>
               </>
             ) : (
