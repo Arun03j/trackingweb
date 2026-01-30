@@ -132,9 +132,9 @@ const AppContent = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen w-screen bg-background">
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden pb-16 relative">
         {renderView()}
       </div>
 

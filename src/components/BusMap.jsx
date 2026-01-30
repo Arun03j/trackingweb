@@ -187,12 +187,12 @@ const BusMap = ({
   };
 
   return (
-    <div className={`h-full w-full relative ${className}`} style={{ height: '100%', minHeight: '100%', position: 'relative' }}>
+    <div className={`h-full w-full relative ${className}`} style={{ height: '100%', width: '100%' }}>
       <MapContainer
         center={getMapCenter()}
         zoom={13}
         className="h-full w-full"
-        style={{ height: '100%', width: '100%', minHeight: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        style={{ height: '100%', width: '100%' }}
         ref={mapRef}
         zoomControl={false}
         preferCanvas={true}

@@ -180,17 +180,13 @@
   width: 100% !important;
   touch-action: pan-x pan-y;
   z-index: 0;
-  position: absolute !important;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative !important;
 }
 
 /* Make sure MapContainer from React Leaflet has proper dimensions */
 [class*="leaflet-container"] {
   height: 100% !important;
-  min-height: 100% !important;
+  width: 100% !important;
 }
 
 /* Ensure map view takes full height on mobile */

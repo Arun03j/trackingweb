@@ -96,62 +96,84 @@ export const getCurrentPosition = async (options = {}) => {
     throw new Error('Geolocation is not supported by this browser');
   }
 
-  // Multiple strategies to try
+  // Detect if on mobile
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  // Multiple strategies to try - optimized for mobile
   const strategies = [
     {
-      // Fast cached/low accuracy first (best chance on desktops)
+      // Mobile: Fast with cached location
       enableHighAccuracy: false,
-      timeout: 10000,
-      maximumAge: 300000,
+      timeout: 8000,
+      maximumAge: isMobile ? 600000 : 300000, // Accept older cache on mobile
       ...options
     },
     {
-      enableHighAccuracy: true,
-      timeout: 20000,
-      maximumAge: 60000
+      // Mobile/Desktop: Medium accuracy with longer timeout
+      enableHighAccuracy: false,
+      timeout: 15000,
+      maximumAge: isMobile ? 300000 : 60000
     },
     {
-      enableHighAccuracy: false,
-      timeout: 30000,
-      maximumAge: 0
+      // Desktop: High accuracy with longest timeout
+      enableHighAccuracy: isMobile ? false : true,
+      timeout: isMobile ? 20000 : 30000,
+      maximumAge: isMobile ? 60000 : 0
     }
   ];
 
   let lastError = null;
 
-  for (const strategy of strategies) {
+  for (let i = 0; i < strategies.length; i++) {
     try {
       const position = await new Promise((resolve, reject) => {
+        const timeoutHandle = setTimeout(() => {
+          reject(new Error(`Timeout on strategy ${i + 1}`));
+        }, strategies[i].timeout + 1000);
+
         navigator.geolocation.getCurrentPosition(
-          resolve,
-          reject,
-          strategy
+          (pos) => {
+            clearTimeout(timeoutHandle);
+            resolve(pos);
+          },
+          (err) => {
+            clearTimeout(timeoutHandle);
+            reject(err);
+          },
+          strategies[i]
         );
       });
 
       return position; // Success!
     } catch (error) {
       lastError = error;
-      console.warn('Location strategy failed, trying next...', error);
+      console.warn(`Location strategy ${i + 1} failed:`, error.message);
     }
   }
 
   // Fallback: try watchPosition once, then stop
   try {
     const position = await new Promise((resolve, reject) => {
+      const timeoutHandle = setTimeout(() => {
+        navigator.geolocation.clearWatch(watchId);
+        reject(new Error('Watch position timeout'));
+      }, 25000);
+
       const watchId = navigator.geolocation.watchPosition(
         (pos) => {
+          clearTimeout(timeoutHandle);
           navigator.geolocation.clearWatch(watchId);
           resolve(pos);
         },
         (err) => {
+          clearTimeout(timeoutHandle);
           navigator.geolocation.clearWatch(watchId);
           reject(err);
         },
         {
           enableHighAccuracy: false,
-          timeout: 30000,
-          maximumAge: 300000
+          timeout: 20000,
+          maximumAge: isMobile ? 300000 : 60000
         }
       );
     });
@@ -163,22 +185,33 @@ export const getCurrentPosition = async (options = {}) => {
 
   // All strategies failed
   let errorMessage = 'Unknown location error';
+  let errorCode = lastError?.code;
 
   if (lastError) {
     switch (lastError.code) {
       case 1: // PERMISSION_DENIED
-        errorMessage = 'Location access denied. Please enable location permissions in your browser.';
+        if (isMobile) {
+          errorMessage = '🔒 Location access denied.\n\nOn your phone:\n1. Go to Settings\n2. Find Safari/Browser → Location Services\n3. Select "Always" or "While Using"\n4. Come back and try again';
+        } else {
+          errorMessage = '🔒 Location access denied.\n\nPlease enable location in your browser settings and try again.';
+        }
         break;
       case 2: // POSITION_UNAVAILABLE
-        errorMessage = 'Location unavailable. Please check if location services are enabled on your device.';
+        if (isMobile) {
+          errorMessage = '📡 Location services not available.\n\nOn your phone:\n1. Enable Location Services in Settings\n2. Ensure WiFi or Cellular is ON\n3. Try again in a moment (GPS takes time)';
+        } else {
+          errorMessage = '📡 Location unavailable.\n\nPlease ensure location services are enabled on your device.';
+        }
         break;
       case 3: // TIMEOUT
-        errorMessage = 'Location request timed out. Please ensure location services are enabled and try again.';
+        errorMessage = '⏱️ Location request timed out.\n\nThis can happen if:\n• You\'re in a building or underground\n• Location services are slow\n• GPS signal is weak\n\nTry again or use demo location.';
         break;
     }
   }
 
-  throw new Error(errorMessage);
+  const error = new Error(errorMessage);
+  error.code = errorCode;
+  throw error;
 };
 
 /**

@@ -350,3 +350,52 @@ html {
 .pb-bottom-nav {
   padding-bottom: calc(4rem + max(0px, env(safe-area-inset-bottom)));
 }
+/* Mobile location button styles */
+.location-button-mobile {
+  position: fixed;
+  bottom: calc(1rem + 64px + max(0px, env(safe-area-inset-bottom)));
+  right: 1rem;
+  z-index: 999;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.location-button-mobile button {
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.location-button-mobile button:active {
+  transform: scale(0.95);
+}
+
+/* Additional mobile viewport handling */
+@media (max-width: 768px) {
+  .location-button-mobile {
+    bottom: calc(1rem + 64px + max(0px, env(safe-area-inset-bottom)));
+    right: 1rem;
+    z-index: 999;
+  }
+  
+  /* Ensure button has proper touch target size (48x48 min) */
+  .location-button-mobile button {
+    min-height: 56px;
+    min-width: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 640px) {
+  .location-button-mobile {
+    right: 0.75rem;
+    bottom: calc(0.75rem + 64px + max(0px, env(safe-area-inset-bottom)));
+  }
+}

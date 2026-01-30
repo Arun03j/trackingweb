@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button.jsx';
 import BusMap from './BusMap.jsx';
 import { useBusLocations } from '../hooks/useBusData.js';
 import { Navigation, Loader2 } from 'lucide-react';
-import { getCurrentPosition } from '../lib/locationService.js';
 import { toast } from 'sonner';
 
 const MapView = ({ 
@@ -16,6 +15,45 @@ const MapView = ({
   const [userLocation, setUserLocation] = useState(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [locationAttempts, setLocationAttempts] = useState(0);
+  const [geolocationInvalid, setGeolocationInvalid] = useState(false);
+
+  // Check geolocation availability on mount
+  useEffect(() => {
+    const checkGeolocation = () => {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+      const isSecure = window.location.protocol === 'https:';
+      const isValidOrigin = isSecure || isLocalhost;
+      
+      setGeolocationInvalid(!isValidOrigin);
+      
+      console.log('🔍 MAP VIEW INITIALIZED');
+      console.log('📱 Device:', isMobile ? 'MOBILE' : 'DESKTOP');
+      console.log('🌍 Geolocation API:', navigator.geolocation ? '✅ Available' : '❌ Not Available');
+      console.log('🔒 Secure Context:', window.isSecureContext ? 'Yes' : 'No (OK for localhost)');
+      console.log('🌐 Origin:', window.location.origin);
+      console.log('✅ Valid for Geolocation:', isValidOrigin ? 'YES' : 'NO - Must use localhost or HTTPS');
+      
+      if (!isValidOrigin) {
+        console.warn('⚠️ GEOLOCATION WILL NOT WORK ON THIS URL');
+        console.warn('Current hostname:', window.location.hostname);
+        console.warn('Geolocation requires HTTPS or localhost HTTP only');
+      }
+      
+      console.log('📍 Location button ready - click to request permission');
+      
+      // Check permissions status if available
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' }).then(permission => {
+          console.log('🔐 Geolocation Permission Status:', permission.state);
+        }).catch(err => {
+          console.log('ℹ️ Cannot check permission status (normal on some browsers)');
+        });
+      }
+    };
+    
+    checkGeolocation();
+  }, []);
 
   // Update selected bus when props change
   useEffect(() => {
@@ -29,222 +67,228 @@ const MapView = ({
     if (onBusSelectProp) onBusSelectProp(bus);
   };
 
-  // Demo location function
+  // Simple demo location
   const useDemoLocation = () => {
     const demoPos = {
-      latitude: 40.7589, // Times Square, NYC
+      latitude: 40.7589,
       longitude: -73.9851
     };
     setUserLocation(demoPos);
-    toast.success('📍 Using demo location (Times Square, NYC)\n\nThis is just for testing the feature!', {
-      duration: 5000,
+    setLoadingLocation(false);
+    toast.success('📍 Demo Location: Times Square, NYC\n\nThis is for testing the map feature!', {
+      duration: 4000,
     });
   };
 
-  // Long press handler for demo mode
-  const [pressTimer, setPressTimer] = useState(null);
-  
-  const handleButtonPress = () => {
-    const timer = setTimeout(() => {
-      useDemoLocation();
-      setLoadingLocation(false);
-    }, 2000);
-    setPressTimer(timer);
-  };
-
-  const handleButtonRelease = () => {
-    if (pressTimer) {
-      clearTimeout(pressTimer);
-      setPressTimer(null);
-    }
-  };
-
-  // Handle centering map on user's current location
+  // Main location request handler - SIMPLIFIED FOR MOBILE
   const handleCenterOnUserLocation = async () => {
-    // Check if geolocation is supported
     if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
+      toast.error('Geolocation not supported');
+      console.error('❌ navigator.geolocation not available');
+      return;
+    }
+
+    // CHECK: Geolocation requires HTTPS or localhost HTTP
+    const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+    const isSecure = window.location.protocol === 'https:';
+    const isValidOrigin = isSecure || isLocalhost;
+    
+    if (!isValidOrigin) {
+      const ip = window.location.hostname;
+      console.error('❌ GEOLOCATION BLOCKED: HTTP on non-localhost IP address');
+      console.log('Current origin:', window.location.origin);
+      console.log('Hostname:', ip);
+      const msg = `🔒 GEOLOCATION REQUIRES HTTPS\n\nYour IP: ${ip}\n\nSolutions:\n1. Use http://localhost:5173 (recommended)\n2. Enable HTTPS with certificate\n3. Use ngrok tunnel`;
+      toast.error(msg, { duration: 8000 });
+      setLoadingLocation(false);
       return;
     }
 
     setLoadingLocation(true);
-    setLocationAttempts(prev => prev + 1);
+    const attempt = locationAttempts + 1;
+    setLocationAttempts(attempt);
     
-    // After 2 failed attempts, offer demo location
-    if (locationAttempts >= 2) {
-      const useDemoLocation = window.confirm(
-        'Location services are having trouble. Would you like to use a demo location (New York City) to test the feature?'
-      );
-      
-      if (useDemoLocation) {
-        const demoPos = {
-          latitude: 40.7589, // Times Square, NYC
-          longitude: -73.9851
-        };
-        setUserLocation(demoPos);
-        toast.success('📍 Using demo location (Times Square, NYC)');
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    console.log('='.repeat(60));
+    console.log('📍 LOCATION REQUEST #' + attempt);
+    console.log('='.repeat(60));
+    console.log('📱 Device Type:', isMobile ? 'MOBILE 📱' : 'DESKTOP 💻');
+    console.log('🌍 Protocol:', window.location.protocol);
+    console.log('🏠 Host:', window.location.hostname);
+    console.log('📐 Viewport:', window.innerWidth + 'x' + window.innerHeight);
+    console.log('🔒 Secure Context:', window.isSecureContext);
+    console.log('⏱️ Timestamp:', new Date().toLocaleTimeString());
+    console.log('='.repeat(60));
+    
+    // After 3 failed attempts, offer demo
+    if (attempt >= 3) {
+      console.warn('⚠️ 3 ATTEMPTS FAILED - SHOWING DEMO OPTION');
+      const useDemo = window.confirm('Location unavailable. Test with demo location (Times Square)?');
+      if (useDemo) {
+        useDemoLocation();
+        setLocationAttempts(0);
+      } else {
         setLoadingLocation(false);
-        return;
       }
+      return;
     }
     
-    // Try multiple strategies
+    // STRATEGY 1: Simple getCurrentPosition with 15 second total timeout
+    console.log('🔵 STRATEGY 1: Direct getCurrentPosition (15s timeout)');
+    
     try {
-      console.log('🔍 Attempt', locationAttempts + 1, '- Trying to get location...');
-      console.log('Browser:', navigator.userAgent);
-      console.log('Protocol:', window.location.protocol);
+      const position = await new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          console.log('❌ STRATEGY 1: Timeout after 15 seconds');
+          reject(new Error('timeout'));
+        }, 15000);
+        
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            clearTimeout(timeoutId);
+            console.log('✅ STRATEGY 1: SUCCESS');
+            console.log('   Lat:', pos.coords.latitude);
+            console.log('   Lng:', pos.coords.longitude);
+            console.log('   Accuracy:', Math.round(pos.coords.accuracy), 'meters');
+            resolve(pos);
+          },
+          (err) => {
+            clearTimeout(timeoutId);
+            console.log('❌ STRATEGY 1: ERROR');
+            console.log('   Code:', err.code, '(1=denied, 2=unavailable, 3=timeout)');
+            console.log('   Message:', err.message);
+            reject(err);
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 12000,
+            maximumAge: 60000
+          }
+        );
+      });
       
-      // Strategy 1: Try with cached position first (fastest)
-      let position;
+      // Success!
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const accuracy = Math.round(position.coords.accuracy);
+      
+      setUserLocation({ latitude: lat, longitude: lng });
+      setLocationAttempts(0);
+      
+      console.log('🎉 LOCATION ACQUIRED SUCCESSFULLY');
+      toast.success(`📍 Got Location!\n${lat.toFixed(4)}, ${lng.toFixed(4)}\n±${accuracy}m`, { duration: 5000 });
+      setLoadingLocation(false);
+      return;
+      
+    } catch (err) {
+      console.log('❌ STRATEGY 1 FAILED:', err.code, err.message);
+      console.log('');
+      console.log('🔵 STRATEGY 2: watchPosition (20s timeout)');
+      
+      // STRATEGY 2: Use watchPosition as fallback
       try {
-        position = await new Promise((resolve, reject) => {
-          const timeoutId = setTimeout(() => reject(new Error('Strategy 1 timeout')), 5000);
-          navigator.geolocation.getCurrentPosition(
+        const position = await new Promise((resolve, reject) => {
+          let watchId = null;
+          const timeoutId = setTimeout(() => {
+            if (watchId !== null) {
+              navigator.geolocation.clearWatch(watchId);
+            }
+            console.log('❌ STRATEGY 2: Timeout after 20 seconds');
+            reject(new Error('watchTimeout'));
+          }, 20000);
+          
+          watchId = navigator.geolocation.watchPosition(
             (pos) => {
               clearTimeout(timeoutId);
+              if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+              }
+              console.log('✅ STRATEGY 2: SUCCESS via watchPosition');
               resolve(pos);
             },
-            (err) => {
+            (error) => {
               clearTimeout(timeoutId);
-              reject(err);
+              if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+              }
+              console.log('❌ STRATEGY 2: ERROR');
+              console.log('   Code:', error.code);
+              console.log('   Message:', error.message);
+              reject(error);
             },
             {
               enableHighAccuracy: false,
-              timeout: 5000,
-              maximumAge: 10 * 60 * 1000 // Accept 10 minute old position
+              timeout: 18000,
+              maximumAge: isMobile ? 300000 : 60000
             }
           );
         });
-        console.log('✅ Strategy 1 (cached) succeeded');
-      } catch (err1) {
-        console.log('⚠️ Strategy 1 failed:', err1.message);
         
-        // Strategy 2: Try with longer timeout and no accuracy requirement
-        try {
-          position = await new Promise((resolve, reject) => {
-            const timeoutId = setTimeout(() => reject(new Error('Strategy 2 timeout')), 15000);
-            navigator.geolocation.getCurrentPosition(
-              (pos) => {
-                clearTimeout(timeoutId);
-                resolve(pos);
-              },
-              (err) => {
-                clearTimeout(timeoutId);
-                reject(err);
-              },
-              {
-                enableHighAccuracy: false,
-                timeout: 15000,
-                maximumAge: 0
-              }
-            );
-          });
-          console.log('✅ Strategy 2 (fresh) succeeded');
-        } catch (err2) {
-          console.log('⚠️ Strategy 2 failed:', err2.message);
-          
-          // Strategy 3: Try watchPosition (sometimes works when getCurrentPosition doesn't)
-          position = await new Promise((resolve, reject) => {
-            const timeoutId = setTimeout(() => {
-              navigator.geolocation.clearWatch(watchId);
-              reject(new Error('Strategy 3 timeout'));
-            }, 10000);
-            
-            const watchId = navigator.geolocation.watchPosition(
-              (pos) => {
-                clearTimeout(timeoutId);
-                navigator.geolocation.clearWatch(watchId);
-                resolve(pos);
-              },
-              (err) => {
-                clearTimeout(timeoutId);
-                navigator.geolocation.clearWatch(watchId);
-                reject(err);
-              },
-              {
-                enableHighAccuracy: false,
-                timeout: 10000,
-                maximumAge: 300000
-              }
-            );
-          });
-          console.log('✅ Strategy 3 (watch) succeeded');
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const accuracy = Math.round(position.coords.accuracy);
+        
+        setUserLocation({ latitude: lat, longitude: lng });
+        setLocationAttempts(0);
+        
+        console.log('🎉 LOCATION ACQUIRED VIA STRATEGY 2');
+        toast.success(`📍 Got Location!\n${lat.toFixed(4)}, ${lng.toFixed(4)}\n±${accuracy}m`, { duration: 5000 });
+        setLoadingLocation(false);
+        return;
+        
+      } catch (err2) {
+        console.log('❌ STRATEGY 2 ALSO FAILED:', err2.code, err2.message);
+        
+        // Both strategies failed
+        let errorMsg = '❌ Location failed';
+        
+        const firstErr = err;
+        if (firstErr.code === 1) {
+          errorMsg = '🔒 PERMISSION DENIED\n\n' + (isMobile 
+            ? 'Go to Settings → Safari/Chrome → Location → Allow Always'
+            : 'Click 🔒 in address bar → Location → Allow');
+        } else if (firstErr.code === 2) {
+          errorMsg = '📡 UNAVAILABLE\n\n✓ Enable Location Services\n✓ Turn on WiFi/Cellular\n✓ Try outdoors';
+        } else if (firstErr.code === 3) {
+          errorMsg = '⏱️ TIMEOUT\n\nGPS too slow. Try moving outdoors or waiting.';
+        } else {
+          errorMsg = '⚠️ Error: ' + (firstErr.message || 'Unknown');
         }
+        
+        toast.error(errorMsg, { duration: 7000 });
       }
-      
-      console.log('✅ Location obtained:', position.coords);
-      console.log('   Accuracy:', position.coords.accuracy, 'meters');
-      
-      const userPos = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude
-      };
-      
-      setUserLocation(userPos);
-      setLocationAttempts(0); // Reset attempts on success
-      toast.success(`📍 Location found!\n${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}\nAccuracy: ${Math.round(position.coords.accuracy)}m`);
-      
-    } catch (error) {
-      console.error('❌ All location strategies failed');
-      console.error('Final error:', error);
-      if (error.code) {
-        console.error('Error code:', error.code);
-      }
-      
-      // Detailed error message
-      let errorMessage = 'Could not get your location';
-      
-      if (error.code === 1) { // PERMISSION_DENIED
-        errorMessage = '🔒 Location permission denied.\n\nPlease:\n1. Click the location icon in the address bar\n2. Select "Allow" for location access\n3. Refresh the page\n4. Try again';
-      } else if (error.code === 2) { // POSITION_UNAVAILABLE
-        errorMessage = '📡 Location unavailable.\n\nPlease check:\n✓ WiFi is ON (needed for location on Mac)\n✓ Location Services enabled in System Settings\n✓ Browser has location permission\n\nTry clicking the button again for a demo location.';
-      } else if (error.code === 3) { // TIMEOUT
-        errorMessage = '⏱️ Location request timed out.\n\nYour device is taking too long to get a GPS fix.\nTry clicking again for a demo location.';
-      } else {
-        errorMessage = `Location error: ${error.message || 'Unknown error'}\n\nClick again to try with a demo location.`;
-      }
-      
-      toast.error(errorMessage, {
-        duration: 8000,
-      });
-    } finally {
-      setLoadingLocation(false);
     }
+    
+    setLoadingLocation(false);
   };
 
-  return (
-    <div className="h-full w-full relative" style={{ height: '100%', minHeight: '100%' }}>
-      {/* Map */}
-      <BusMap
-        buses={buses}
-        selectedBus={selectedBus}
-        onBusSelect={handleBusSelect}
-        userLocation={userLocation}
-        className="h-full w-full absolute inset-0"
-      />
+  // Handle centering map on user's current location
+  // (handler above)
 
-      {/* Live Location Button */}
-      <button
-        onClick={handleCenterOnUserLocation}
-        onMouseDown={handleButtonPress}
-        onMouseUp={handleButtonRelease}
-        onMouseLeave={handleButtonRelease}
-        onTouchStart={handleButtonPress}
-        onTouchEnd={handleButtonRelease}
-        disabled={loadingLocation}
-        className="absolute bottom-24 right-4 z-[1000] h-14 w-14 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-        title="Click: Get your location | Hold 2s: Use demo location (Times Square, NYC)"
-      >
-        {loadingLocation ? (
-          <Loader2 className="h-6 w-6 animate-spin" />
-        ) : (
-          <Navigation className="h-6 w-6" />
-        )}
-      </button>
+  return (
+    <>
+      {/* Geolocation Warning Banner */}
+      {geolocationInvalid && (
+        <div className="fixed top-0 left-0 right-0 bg-red-500 text-white p-3 text-center text-sm z-[1000] flex items-center justify-center gap-2">
+          <span>⚠️ Geolocation requires localhost or HTTPS</span>
+          <span className="text-xs opacity-90">Access via http://localhost:5173 instead</span>
+        </div>
+      )}
+      <div className={geolocationInvalid ? 'pt-14' : ''}>
+      <div className="absolute inset-0 w-full h-full" style={{ height: '100%', width: '100%' }}>
+        {/* Map */}
+        <BusMap
+          buses={buses}
+          selectedBus={selectedBus}
+          onBusSelect={handleBusSelect}
+          userLocation={userLocation}
+          className="h-full w-full"
+        />
 
       {/* Info Panel for selected items */}
-      {selectedBus && (
-        <div className="absolute bottom-20 left-4 right-20 z-[500] bg-white rounded-lg shadow-lg p-4 max-h-[30vh] overflow-y-auto">
+        {selectedBus && (
+          <div className="absolute bottom-20 left-4 right-20 z-[500] bg-white rounded-lg shadow-lg p-4 max-h-[30vh] overflow-y-auto">
           {selectedBus && (
             <div>
               <h3 className="font-semibold text-base mb-2">{selectedBus.busId}</h3>
@@ -267,8 +311,34 @@ const MapView = ({
             ×
           </Button>
         </div>
-      )}
-    </div>
+        )}
+      </div>
+      
+      {/* Live Location Button - Outside absolute container for proper fixed positioning */}
+      <div className="location-button-mobile">
+        <button
+          onClick={handleCenterOnUserLocation}
+          disabled={loadingLocation}
+          className="h-14 w-14 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 relative"
+          title={
+            /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname) || window.location.protocol === 'https:'
+              ? "Click to get your live location"
+              : "⚠️ Geolocation requires localhost or HTTPS (see console)"
+          }
+          aria-label="Get current location"
+        >
+          {loadingLocation ? (
+            <Loader2 className="h-6 w-6 animate-spin" />
+          ) : (
+            <Navigation className="h-6 w-6" />
+          )}
+          {!/^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname) && window.location.protocol !== 'https:' && (
+            <div className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center text-white text-xs">!</div>
+          )}
+        </button>
+      </div>
+      </div>
+    </>
   );
 };
 
