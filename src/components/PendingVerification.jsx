@@ -27,9 +27,9 @@ const PendingVerification = ({ user, userProfile }) => {
   const getRoleDescription = (role) => {
     switch (role) {
       case 'driver':
-        return 'Your driver verification request is being reviewed. Once approved, you will be able to share your live location for bus tracking.';
+        return 'Your driver verification request is being reviewed. Once approved, you will be able to access driver features.';
       case 'student':
-        return 'Your account is being reviewed. Once approved, you will be able to view bus locations and track live drivers.';
+        return 'Your account is being reviewed. Once approved, you will be able to view bus locations.';
       default:
         return 'Your account is being reviewed by an administrator. You will receive access once approved.';
     }

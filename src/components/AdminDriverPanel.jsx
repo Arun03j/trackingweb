@@ -233,8 +233,8 @@ const AdminDriverPanel = () => {
             </DialogTitle>
             <DialogDescription>
               {actionType === 'approve' 
-                ? 'This user will be able to share their live location as a verified driver.'
-                : 'This user will not be able to share their location and may need to reapply.'
+                ? 'This user will be able to access driver features.'
+                : 'This user will not be approved and may need to reapply.'
               }
             </DialogDescription>
           </DialogHeader>

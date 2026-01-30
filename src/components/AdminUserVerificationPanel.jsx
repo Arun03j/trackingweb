@@ -170,23 +170,25 @@ const AdminUserVerificationPanel = ({ onClose }) => {
   };
 
   const UserCard = ({ user: userData, isPending = true }) => (
-    <Card className="mb-4">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
+    <Card className="mb-3 sm:mb-4">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <div className="flex-shrink-0 mt-0.5 sm:mt-0">
               {getRoleIcon(userData.role)}
-              <div>
-                <h3 className="font-semibold">{userData.displayName}</h3>
-                <p className="text-sm text-gray-600">{userData.email}</p>
-              </div>
             </div>
-            <Badge className={getRoleBadgeColor(userData.role)}>
-              {userData.role}
-            </Badge>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-semibold text-sm sm:text-base truncate">{userData.displayName}</h3>
+                <Badge className={`${getRoleBadgeColor(userData.role)} text-xs whitespace-nowrap`}>
+                  {userData.role}
+                </Badge>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-600 truncate">{userData.email}</p>
+            </div>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2 justify-end sm:justify-start">
             {isPending ? (
               <>
                 <Dialog>
@@ -195,21 +197,22 @@ const AdminUserVerificationPanel = ({ onClose }) => {
                       variant="outline" 
                       size="sm"
                       onClick={() => setSelectedUser(userData)}
+                      className="touch-manipulation min-h-[40px] text-xs sm:text-sm"
                     >
-                      <Eye className="h-4 w-4 mr-1" />
+                      <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                       Review
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Review User Application</DialogTitle>
-                      <DialogDescription>
+                      <DialogTitle className="text-base sm:text-lg">Review User Application</DialogTitle>
+                      <DialogDescription className="text-xs sm:text-sm">
                         Review the details and approve or reject this user's access.
                       </DialogDescription>
                     </DialogHeader>
                     
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-3 sm:space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                           <label className="text-sm font-medium">Name</label>
                           <p className="text-sm text-gray-600">{userData.displayName}</p>
@@ -235,7 +238,7 @@ const AdminUserVerificationPanel = ({ onClose }) => {
                           <Alert>
                             <Car className="h-4 w-4" />
                             <AlertDescription>
-                              This user is applying for driver access. Drivers can share their live location for bus tracking.
+                              This user is applying for driver access.
                             </AlertDescription>
                           </Alert>
                           
@@ -274,11 +277,12 @@ const AdminUserVerificationPanel = ({ onClose }) => {
                       </Alert>
                     )}
                     
-                    <DialogFooter className="space-x-2">
+                    <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 sm:space-x-2">
                       <Button 
                         variant="outline" 
                         onClick={() => handleRejectUser(userData.id, userData.email)}
                         disabled={actionLoading}
+                        className="w-full sm:w-auto touch-manipulation min-h-[44px] order-2 sm:order-1"
                       >
                         <XCircle className="h-4 w-4 mr-1" />
                         {actionLoading ? 'Rejecting...' : 'Reject'}
@@ -286,6 +290,7 @@ const AdminUserVerificationPanel = ({ onClose }) => {
                       <Button 
                         onClick={() => handleApproveUser(userData.id, userData.email)}
                         disabled={actionLoading}
+                        className="w-full sm:w-auto touch-manipulation min-h-[44px] order-1 sm:order-2"
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
                         {actionLoading ? 'Approving...' : 'Approve'}
@@ -318,25 +323,25 @@ const AdminUserVerificationPanel = ({ onClose }) => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-4xl mx-auto p-3 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold">User Verification Panel</h1>
-          <p className="text-gray-600">Manage user access and verification</p>
+          <h1 className="text-xl sm:text-2xl font-bold">User Verification Panel</h1>
+          <p className="text-sm sm:text-base text-gray-600">Manage user access and verification</p>
         </div>
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} className="touch-manipulation min-h-[44px] w-full sm:w-auto">
           Close Panel
         </Button>
       </div>
 
       <Tabs defaultValue="pending" className="space-y-4">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="pending" className="flex items-center space-x-2">
-            <Clock className="h-4 w-4" />
+          <TabsTrigger value="pending" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm touch-manipulation min-h-[44px]">
+            <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>Pending ({pendingUsers.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="verified" className="flex items-center space-x-2">
-            <UserCheck className="h-4 w-4" />
+          <TabsTrigger value="verified" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm touch-manipulation min-h-[44px]">
+            <UserCheck className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>Verified ({verifiedUsers.length})</span>
           </TabsTrigger>
         </TabsList>

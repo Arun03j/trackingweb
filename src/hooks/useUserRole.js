@@ -33,7 +33,7 @@ export const useUserRole = () => {
         setUserProfile(result.data);
         setError(null);
         
-        // Check if user can share location
+        // Check if user is a verified driver
         const canShareResult = await canShareLocation(user.uid);
         setCanShare(canShareResult);
       } else {

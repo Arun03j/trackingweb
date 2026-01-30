@@ -66,7 +66,7 @@ const DriverVerificationForm = ({ onSuccess, onCancel }) => {
           Request Driver Verification
         </CardTitle>
         <CardDescription>
-          Submit your information to become a verified bus driver and share your live location with students.
+          Submit your information to become a verified bus driver.
         </CardDescription>
       </CardHeader>
 
@@ -162,7 +162,7 @@ const DriverVerificationForm = ({ onSuccess, onCancel }) => {
             <ul className="text-sm text-blue-800 space-y-1">
               <li>• Your request will be reviewed by an administrator</li>
               <li>• You'll be notified about the verification status in the app</li>
-              <li>• Once approved, you can start sharing your live location</li>
+              <li>• Once approved, your driver account will be activated</li>
               <li>• Students will be able to track your bus in real-time</li>
             </ul>
           </div>

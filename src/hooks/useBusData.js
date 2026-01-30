@@ -1,6 +1,7 @@
 // Custom React hook for managing bus tracking data
 import { useState, useEffect, useCallback } from 'react';
 import { subscribeToBusLocations, subscribeToBus } from '../lib/busService.js';
+import { listenToDriverLocations } from '../lib/locationService.js';
 
 /**
  * Hook for managing all bus locations with real-time updates
@@ -8,6 +9,7 @@ import { subscribeToBusLocations, subscribeToBus } from '../lib/busService.js';
  */
 export const useBusLocations = () => {
   const [buses, setBuses] = useState([]);
+  const [driverLocations, setDriverLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [connected, setConnected] = useState(false);
@@ -16,11 +18,18 @@ export const useBusLocations = () => {
     setLoading(true);
     setError(null);
 
-    const unsubscribe = subscribeToBusLocations((busData) => {
+    // Subscribe to static bus data
+    const unsubscribeBuses = subscribeToBusLocations((busData) => {
       setBuses(busData);
       setLoading(false);
       setConnected(true);
       setError(null);
+    });
+
+    // Subscribe to live driver locations
+    const unsubscribeDrivers = listenToDriverLocations((drivers) => {
+      console.log('📍 Driver locations updated:', drivers);
+      setDriverLocations(drivers);
     });
 
     // Handle connection errors
@@ -30,10 +39,13 @@ export const useBusLocations = () => {
       setLoading(false);
     };
 
-    // Cleanup subscription on unmount
+    // Cleanup subscriptions on unmount
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      if (unsubscribeBuses) {
+        unsubscribeBuses();
+      }
+      if (unsubscribeDrivers) {
+        unsubscribeDrivers();
       }
     };
   }, []);
@@ -43,8 +55,28 @@ export const useBusLocations = () => {
     setError(null);
   }, []);
 
+  // Combine buses and driver locations
+  const allBuses = [
+    ...buses,
+    ...driverLocations.map(driver => ({
+      id: driver.id,
+      busId: driver.busNumber || 'Driver Bus',
+      route: driver.route || 'Unknown Route',
+      latitude: driver.latitude,
+      longitude: driver.longitude,
+      status: 'active',
+      speed: driver.speed || 0,
+      lastUpdated: driver.timestamp || driver.lastSeen,
+      isLiveDriver: true, // Flag to identify live driver
+      driverName: driver.displayName,
+      heading: driver.heading
+    }))
+  ];
+
   return {
-    buses,
+    buses: allBuses,
+    staticBuses: buses,
+    driverLocations,
     loading,
     error,
     connected,

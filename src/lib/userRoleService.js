@@ -177,7 +177,7 @@ export const getPendingDriverVerifications = async () => {
 };
 
 /**
- * Check if user can share location (is verified driver)
+ * Check if user is a verified driver
  */
 export const canShareLocation = async (userId) => {
   try {

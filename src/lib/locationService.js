@@ -7,19 +7,24 @@ import {
   onSnapshot,
   serverTimestamp,
   query,
-  where 
+  where,
+  getDocs
 } from 'firebase/firestore';
 import { db } from './firebase.js';
 
 /**
- * Start sharing live location for a driver
+ * Create driver location record
  */
 export const startLocationSharing = async (userId, userEmail, driverInfo) => {
   try {
     const locationRef = doc(db, 'driverLocations', userId);
     
     // Get current position
-    const position = await getCurrentPosition();
+    const position = await getCurrentPosition({
+      enableHighAccuracy: false,
+      timeout: 20000,
+      maximumAge: 300000
+    });
     
     await setDoc(locationRef, {
       userId,
@@ -69,7 +74,7 @@ export const updateDriverLocation = async (userId, position) => {
 };
 
 /**
- * Stop sharing live location
+ * Remove driver location record
  */
 export const stopLocationSharing = async (userId) => {
   try {
@@ -94,20 +99,21 @@ export const getCurrentPosition = async (options = {}) => {
   // Multiple strategies to try
   const strategies = [
     {
-      enableHighAccuracy: true,
+      // Fast cached/low accuracy first (best chance on desktops)
+      enableHighAccuracy: false,
       timeout: 10000,
-      maximumAge: 0,
+      maximumAge: 300000,
       ...options
     },
     {
-      enableHighAccuracy: false,
-      timeout: 8000,
-      maximumAge: 5000
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 60000
     },
     {
       enableHighAccuracy: false,
-      timeout: 15000,
-      maximumAge: 60000
+      timeout: 30000,
+      maximumAge: 0
     }
   ];
 
@@ -130,6 +136,31 @@ export const getCurrentPosition = async (options = {}) => {
     }
   }
 
+  // Fallback: try watchPosition once, then stop
+  try {
+    const position = await new Promise((resolve, reject) => {
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          navigator.geolocation.clearWatch(watchId);
+          resolve(pos);
+        },
+        (err) => {
+          navigator.geolocation.clearWatch(watchId);
+          reject(err);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 30000,
+          maximumAge: 300000
+        }
+      );
+    });
+
+    return position;
+  } catch (error) {
+    lastError = error;
+  }
+
   // All strategies failed
   let errorMessage = 'Unknown location error';
 
@@ -142,7 +173,7 @@ export const getCurrentPosition = async (options = {}) => {
         errorMessage = 'Location unavailable. Please check if location services are enabled on your device.';
         break;
       case 3: // TIMEOUT
-        errorMessage = 'Location request timed out. Please check your connection and try again.';
+        errorMessage = 'Location request timed out. Please ensure location services are enabled and try again.';
         break;
     }
   }
@@ -161,8 +192,8 @@ export const watchPosition = (callback, errorCallback, options = {}) => {
 
   const defaultOptions = {
     enableHighAccuracy: true,
-    timeout: 10000,
-    maximumAge: 30000, // 30 seconds
+    timeout: 20000,
+    maximumAge: 60000, // 60 seconds
     ...options
   };
 
@@ -218,6 +249,49 @@ export const isLocationAvailable = () => {
 };
 
 /**
+ * Delete a specific driver location by user ID
+ */
+export const deleteDriverLocation = async (userId) => {
+  try {
+    const locationRef = doc(db, 'driverLocations', userId);
+    await deleteDoc(locationRef);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting driver location:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Clean up old/stale driver locations (older than specified hours)
+ */
+export const cleanupStaleDriverLocations = async (hoursOld = 24) => {
+  try {
+    const cutoffTime = new Date();
+    cutoffTime.setHours(cutoffTime.getHours() - hoursOld);
+    
+    const locationsQuery = collection(db, 'driverLocations');
+    const snapshot = await getDocs(locationsQuery);
+    
+    const deletePromises = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const lastSeen = data.lastSeen?.toDate() || data.timestamp?.toDate();
+      
+      if (lastSeen && lastSeen < cutoffTime) {
+        deletePromises.push(deleteDoc(doc.ref));
+      }
+    });
+    
+    await Promise.all(deletePromises);
+    return { success: true, deleted: deletePromises.length };
+  } catch (error) {
+    console.error('Error cleaning up stale locations:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
  * Request location permission
  */
 export const requestLocationPermission = async () => {
@@ -227,9 +301,33 @@ export const requestLocationPermission = async () => {
     }
 
     // Try to get current position to trigger permission request
-    await getCurrentPosition({ timeout: 5000 });
+    await getCurrentPosition({ timeout: 15000, maximumAge: 60000 });
     return { success: true };
   } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Check if a driver is currently sharing their location
+ */
+export const getDriverLocation = async (userId) => {
+  try {
+    const { getDoc } = await import('firebase/firestore');
+    const locationRef = doc(db, 'driverLocations', userId);
+    const docSnap = await getDoc(locationRef);
+    
+    if (docSnap.exists()) {
+      return { 
+        success: true, 
+        isSharing: true,
+        data: { id: docSnap.id, ...docSnap.data() }
+      };
+    }
+    
+    return { success: true, isSharing: false, data: null };
+  } catch (error) {
+    console.error('Error checking driver location:', error);
     return { success: false, error: error.message };
   }
 };

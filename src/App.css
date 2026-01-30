@@ -166,3 +166,37 @@
   background: var(--destructive);
 }
 
+/* Mobile map container fixes */
+@media (max-width: 640px) {
+  .map-container {
+    height: 100dvh !important;
+    min-height: -webkit-fill-available !important;
+  }
+}
+
+/* Ensure Leaflet map container has explicit height on mobile */
+.leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+  touch-action: pan-x pan-y;
+  z-index: 0;
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Make sure MapContainer from React Leaflet has proper dimensions */
+[class*="leaflet-container"] {
+  height: 100% !important;
+  min-height: 100% !important;
+}
+
+/* Ensure map view takes full height on mobile */
+@media (max-width: 640px) {
+  div[class*="h-full"][class*="relative"] > div[class*="h-full"] {
+    height: 100% !important;
+  }
+}
+

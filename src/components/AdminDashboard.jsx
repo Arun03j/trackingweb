@@ -171,27 +171,27 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="px-2 sm:px-0">
+        <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Manage your bus tracking system from one central location
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="routes">Routes</TabsTrigger>
-          <TabsTrigger value="schedules">Schedules</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 gap-1 sm:gap-0 h-auto">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 py-2 touch-manipulation">Overview</TabsTrigger>
+          <TabsTrigger value="users" className="text-xs sm:text-sm px-2 py-2 touch-manipulation">Users</TabsTrigger>
+          <TabsTrigger value="routes" className="text-xs sm:text-sm px-2 py-2 touch-manipulation">Routes</TabsTrigger>
+          <TabsTrigger value="schedules" className="text-xs sm:text-sm px-2 py-2 touch-manipulation">Schedules</TabsTrigger>
+          <TabsTrigger value="notifications" className="text-xs sm:text-sm px-2 py-2 touch-manipulation">Notify</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs sm:text-sm px-2 py-2 touch-manipulation">Analytics</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
-          {/* Stats Overview */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+          {/* Stats Overview - Mobile Optimized */}
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             <StatCard
               title="Total Users"
               value={stats.totalUsers}
@@ -210,7 +210,7 @@ const AdminDashboard = () => {
             <StatCard
               title="Active Drivers"
               value={stats.activeDrivers}
-              description="Verified drivers sharing location"
+              description="Verified drivers"
               icon={MapPin}
               trend="+3 this week"
             />
