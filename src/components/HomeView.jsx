@@ -92,7 +92,7 @@ const HomeView = ({ onBusSelect }) => {
       </div>
 
       {/* Buses List */}
-      <div className="flex-1 px-4 pb-20">
+      <div className="flex-1 px-4 pb-28 safe-bottom">
         <ScrollArea className="h-full">
           <div className="space-y-3 pb-4">
             {loading && buses.length === 0 ? (

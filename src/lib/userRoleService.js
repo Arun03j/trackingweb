@@ -98,28 +98,46 @@ export const requestDriverVerification = async (userId, driverInfo) => {
 };
 
 /**
- * Verify driver (admin function)
+ * Verify/Approve any user (student, driver, admin) - admin function
  */
-export const verifyDriver = async (userId, isApproved, adminNotes = '') => {
+export const verifyUser = async (userId, isApproved, adminNotes = '') => {
   try {
+    console.log('🔵 VERIFY USER CALLED', {
+      userId,
+      isApproved,
+      adminNotes,
+      timestamp: new Date().toISOString()
+    });
+
     // First check if the user document exists
     const userRef = doc(db, 'users', userId);
+    console.log('📄 Fetching user document:', userId);
+    
     const userSnap = await getDoc(userRef);
     
     if (!userSnap.exists()) {
+      console.error('❌ User document not found:', userId);
       throw new Error('User document not found');
     }
     
     const currentData = userSnap.data();
+    console.log('📋 Current user data:', {
+      role: currentData.role,
+      displayName: currentData.displayName,
+      isPending: currentData.isPending,
+      isVerified: currentData.isVerified,
+      isRejected: currentData.isRejected
+    });
     
-    // Ensure the user is actually a driver requesting verification
-    if (currentData.role !== USER_ROLES.DRIVER) {
-      throw new Error('User is not a driver');
+    // Allow any user type (student, driver, admin) to be verified
+    // Just ensure they exist and are pending
+    if (!currentData.isPending) {
+      console.warn('⚠️ User is not in pending status:', currentData.isPending);
     }
     
     const updateData = {
-      ...currentData, // Preserve existing data
-      adminNotes,
+      ...currentData,
+      adminNotes: adminNotes || currentData.adminNotes || '',
       isPending: false,
       updatedAt: serverTimestamp()
     };
@@ -128,20 +146,41 @@ export const verifyDriver = async (userId, isApproved, adminNotes = '') => {
       updateData.isVerified = true;
       updateData.isRejected = false;
       updateData.verifiedAt = serverTimestamp();
+      console.log('✅ Setting user as VERIFIED (Role:', currentData.role, ')');
     } else {
       updateData.isVerified = false;
       updateData.isRejected = true;
       updateData.rejectedAt = serverTimestamp();
+      console.log('❌ Setting user as REJECTED (Role:', currentData.role, ')');
     }
     
-    // Use setDoc with merge instead of updateDoc to avoid permission issues
+    console.log('💾 Writing update to Firestore...');
+    
+    // Use setDoc with merge to update the document
     await setDoc(userRef, updateData, { merge: true });
     
+    console.log('✅ USER VERIFICATION COMPLETE - Success!');
     return { success: true };
+    
   } catch (error) {
-    console.error('Error verifying driver:', error);
-    return { success: false, error: error.message || 'Failed to verify driver' };
+    console.error('❌ ERROR IN VERIFY USER:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
+    return { 
+      success: false, 
+      error: error.message || 'Failed to verify user',
+      code: error.code
+    };
   }
+};
+
+/**
+ * Verify driver (backward compatibility - calls verifyUser)
+ */
+export const verifyDriver = async (userId, isApproved, adminNotes = '') => {
+  return verifyUser(userId, isApproved, adminNotes);
 };
 
 /**

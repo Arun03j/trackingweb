@@ -163,7 +163,7 @@ const ProfileView = ({ onNavigateToSettings, onNavigateToAdminDashboard, onNavig
   };
 
   return (
-    <div className="h-full overflow-y-auto pb-20 bg-gradient-to-b from-gray-50 to-white">
+    <div className="h-full overflow-y-auto pb-28 bg-gradient-to-b from-gray-50 to-white safe-bottom">
       <div className="p-4 space-y-4">
         {/* Profile Header */}
         <Card className="border-none shadow-lg bg-gradient-to-br from-primary/10 to-primary/5">

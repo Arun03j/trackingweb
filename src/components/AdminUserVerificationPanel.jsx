@@ -316,28 +316,6 @@ const AdminUserVerificationPanel = ({ onClose }) => {
                           )}
                         </div>
                       )}
-
-                      {userData.role === 'student' && (
-                        <div className="space-y-3">
-                          <Alert>
-                            <GraduationCap className="h-4 w-4" />
-                            <AlertDescription>
-                              This user is applying for student access.
-                            </AlertDescription>
-                          </Alert>
-                        </div>
-                      )}
-
-                      {userData.role === 'admin' && (
-                        <div className="space-y-3">
-                          <Alert>
-                            <Shield className="h-4 w-4" />
-                            <AlertDescription>
-                              This user is requesting admin access.
-                            </AlertDescription>
-                          </Alert>
-                        </div>
-                      )}
                     </div>
                     
                     {error && (

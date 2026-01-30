@@ -43,7 +43,7 @@ const SettingsView = () => {
   };
 
   return (
-    <div className="h-full overflow-y-auto pb-20 bg-gradient-to-b from-gray-50 to-white">
+    <div className="h-full overflow-y-auto pb-28 bg-gradient-to-b from-gray-50 to-white safe-bottom">
       <div className="p-4 space-y-4">
         {/* Header */}
         <div className="mb-6">
@@ -59,6 +59,36 @@ const SettingsView = () => {
             <AlertDescription>{message.text}</AlertDescription>
           </Alert>
         )}
+
+        {/* Logout Section - Moved to Top for Mobile Visibility */}
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="text-base text-red-600">Account Actions</CardTitle>
+            <CardDescription className="text-xs">
+              Sign out from your account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              variant="destructive" 
+              className="w-full touch-manipulation min-h-[48px]"
+              onClick={handleLogout}
+              disabled={loggingOut}
+            >
+              {loggingOut ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing out...
+                </>
+              ) : (
+                <>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Account Information */}
         <Card>
@@ -133,36 +163,6 @@ const SettingsView = () => {
               <span className="text-muted-foreground">Build</span>
               <span className="font-medium">Production</span>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Logout Section */}
-        <Card className="border-red-200">
-          <CardHeader>
-            <CardTitle className="text-base text-red-600">Account Actions</CardTitle>
-            <CardDescription className="text-xs">
-              Sign out from your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              variant="destructive" 
-              className="w-full touch-manipulation min-h-[48px]"
-              onClick={handleLogout}
-              disabled={loggingOut}
-            >
-              {loggingOut ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing out...
-                </>
-              ) : (
-                <>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
-                </>
-              )}
-            </Button>
           </CardContent>
         </Card>
 
